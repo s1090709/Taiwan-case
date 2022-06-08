@@ -1,0 +1,119 @@
+import requests
+import pandas as pd
+
+
+def is_leap_year(year):
+    # checks if the current year is leap year
+
+    """
+        params:
+            year - int
+        
+        returns:
+            bool
+    """
+
+    if((year%4==0 and year%100!=0) or (year%400==0)):
+        return True
+    else:
+        return False
+
+
+def split_date(date_str):
+    # Splits the date into month, day and year
+
+    """
+        params:
+            date_str - str (mm-dd-yyyy)
+        
+        returns:
+            month - int
+            day - int
+            year - int
+    """
+
+    month, day, year = list(int(x) for x in date_str.split("-")) # For US standards, for rest of the world feel free to swap month and day
+    return month, day, year
+
+
+def generate_dates(start_date, end_date):
+    # This doesn't validate the dates and it is assumed that the start_date and end_dates both are valid dates with the end date > start_date
+    # This generates all dates bw start date and end date and also takes into account leap year as well
+
+    """
+        params:
+            start_date - str (mm-dd-yyyy)
+            end_date - str (mm-dd-yyyy)
+        
+        returns:
+            dates - list of strings of dates between start_date and end_date
+    """
+
+    dates = []
+    start_month, start_day, start_year = split_date(start_date)
+    end_month, end_day, end_year = split_date(end_date)
+    
+    year = start_year
+    while(year<=end_year):
+        month = start_month if(year==start_year) else 1
+        max_month = end_month if(year==end_year) else 12
+        while(month<=max_month):
+            day = start_day if(year==start_year) else 1
+            if(month==2):
+                max_day = 29 if(is_leap_year(year)) else 28
+            else:
+                max_day = 31 if(start_month in [1,3,5,7,8,10,12]) else 30
+            if(year==end_year and month==end_month):
+                max_day = end_day
+            while(day<=max_day):
+                new_date = f"{month}-{day}-{year}"
+                dates.append(new_date)
+                day+=1
+            month+=1
+        year+=1
+
+        return dates
+
+
+def check_if_url_is_valid(url):
+    # This checks if the url is valid through the python requests library, by making a GET request. if the url is present and valid then it returns status code in (200-300)
+
+    """
+        params:
+            url - str
+        
+        returns:
+            bool
+    """
+
+    r = requests.get(url)
+    if(r.status_code in range(200,300)):
+        return True
+    else:
+        return False
+        
+
+def to_df(base_url, start_date, end_date):
+    # Takes all the generated dates, creates a url for each date through the base url and then tries to download it, else prints out an error message
+
+    """
+        params:
+            base_url - str it should be of the format "https://github.com/{}.csv" where the {} will be used for string formatting and different dates will be put into it
+
+            returns:
+                final_df - pd.DataFrame 
+    """
+
+    files = []
+    dates = generate_dates(start_date, end_date)
+    for date in dates:
+        url = base_url.format(date)
+        valid_url = check_if_url_is_valid(url)
+        if(valid_url):
+            df = pd.read_csv(url)
+            files.append(df)
+        else:
+            print(f"Could not download {date} data as it may be unavailable")
+    final_df = pd.concat(files)
+    print(f"\n Downloaded {len(files)} files!\n")
+    return final_df
